@@ -86,15 +86,27 @@ def search_sensitive_info(logs_dir):
                 for line in f:
                     for keyword in SENSITIVE_KEYWORDS:
                         if keyword in line:
-                            matches.append(f"{file}: {line.strip()}")
+                            return True
 
-    return matches
+    return False
 
-def send_markdown_webhook(msg):
+def check_empty_dirs(logs_dir):
+    may_matches = []
+    """ 检查 logs_dir 下的子文件夹是否为空，若为空则记录 """
+    for sub_dir in os.listdir(logs_dir):
+        sub_dir_path = os.path.join(logs_dir, sub_dir)
+        if os.path.isdir(sub_dir_path):
+            # 检查子文件夹是否为空
+            if not any(os.scandir(sub_dir_path)):  # 子文件夹为空
+                return True
+
+    return False
+
+def send_markdown_webhook(msg, url):
     webhook_url = f"https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key={WX_WEBHOOK_KEY}"
 
     # 格式化Markdown消息
-    content = f"**敏感信息泄露:**\n\n [点击查看日志]({msg})"
+    content = f"**{msg}:** {url}"
 
     payload = {
         "msgtype": "markdown",
@@ -106,27 +118,30 @@ def send_markdown_webhook(msg):
     response = requests.post(webhook_url, json=payload)
     return response.status_code, response.text
 
-def handle_sensitive_match(run_id, matches):
-    """ 如果发现敏感信息，执行自定义操作 """
-    print(f"🚨 发现敏感信息泄露！run_id: {run_id}")
-    web_url = f"https://github.com/{OWNER}/{REPO}/actions/runs/{run_id}"
-    send_markdown_webhook(web_url)
-
 if __name__ == "__main__":
     print(f"🔍 获取 {START_TIME} ~ {END_TIME} 失败的 workflow logs...")
     failed_runs = get_failed_runs()
     print(f"✅ 找到 {len(failed_runs)} 个失败运行")
-
+    matches = ""
+    may_matches = ""
     for run_id in failed_runs:
+        web_url = f"https://github.com/{OWNER}/{REPO}/actions/runs/{run_id}"
         print(f"⬇️ 下载日志 {run_id}...")
         logs_dir = download_logs(run_id)
         if not logs_dir:
             continue
-
         print(f"🔎 搜索敏感关键字...")
-        matches = search_sensitive_info(logs_dir)
-
-        if matches:
-            handle_sensitive_match(run_id, matches)
+        if search_sensitive_info(logs_dir):
+            print(f"🚨 发现敏感信息泄露！run_id: {run_id}")
+            matches += f"\n\n[{run_id}]({web_url}) "
+        elif check_empty_dirs(logs_dir):
+            print(f"🚨 发现敏感信息可能泄露！run_id: {run_id}")
+            may_matches += f"\n\n[{run_id}]({web_url}) "
         else:
             print(f"✅ run_id {run_id} 日志无敏感信息")
+    if matches:
+        msg = "敏感信息泄露"
+        send_markdown_webhook(msg, matches)
+    if may_matches:
+        msg = "敏感信息可能泄露"
+        send_markdown_webhook(msg, may_matches)
