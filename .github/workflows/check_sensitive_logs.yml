@@ -1,0 +1,31 @@
+name: "Check Sensitive Logs"
+
+on:
+  schedule:
+    - cron: "0 1 * * *"  # 北京时间每天 09:00 运行（UTC 时间 1:00）
+  workflow_dispatch:
+
+jobs:
+  check-logs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🔹 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔹 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+
+      - name: 🔹 Install Dependencies
+        run: pip install -r check_sensitive_logs/requirements.txt
+
+      - name: 🔹 Run Log Checker
+        env:
+          GITHUB_TOKEN: ${{ secrets.CHECK_SENSITIVE_LOGS_GITHUB_TOKEN }}
+          OWNER: ${{ secrets.CHECK_SENSITIVE_LOGS_OWNER }} 
+          REPO: ${{ secrets.CHECK_SENSITIVE_LOGS_REPO }}  
+          SENSITIVE_KEYWORDS: ${{ secrets.CHECK_SENSITIVE_LOGS_SENSITIVE_KEYWORDS }}
+          WX_WEBHOOK_KEY: ${{ secrets.CHECK_SENSITIVE_LOGS_WX_WEBHOOK_KEY }}
+        run: python check_sensitive_logs/check_logs.py  
+
