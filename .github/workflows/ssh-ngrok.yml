@@ -13,9 +13,14 @@ jobs:
           sudo systemctl start ssh
           echo "PermitRootLogin yes" | sudo tee -a /etc/ssh/sshd_config
           echo "PasswordAuthentication yes" | sudo tee -a /etc/ssh/sshd_config
-          echo "root:github" | sudo chpasswd  # 设置 root 用户密码
-          sudo systemctl restart ssh
-
+          # 确保 SSH 目录和权限正确
+          sudo mkdir -p /root/.ssh
+          sudo chmod 700 /root/.ssh
+          # 追加公钥到 authorized_keys
+          echo "${{ secrets.ID_RSA_PUB }}" | sudo tee -a /root/.ssh/authorized_keys
+          # 设置正确权限
+          sudo chmod 600 /root/.ssh/authorized_keys
+          sudo chown -R root:root /root/.ssh
       - name: 安装 ngrok 并暴露 SSH 端口
         run: |
           curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
@@ -33,6 +38,5 @@ jobs:
       - name: 输出 SSH 连接方式
         run: |
           echo "🔹 使用以下命令连接到服务器："
-          echo "   ssh root@$(cat ssh_address.txt) -p 22"
-          echo "🔹 密码：github"
+          echo " ssh root@$(cat ssh_address.txt | sed -E 's#tcp://([^:]+):([0-9]+)#\1#') -p $(cat ssh_address.txt | sed -E 's#tcp://([^:]+):([0-9]+)#\2#') "
           sleep 1h
