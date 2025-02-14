@@ -35,3 +35,4 @@ jobs:
           echo "🔹 使用以下命令连接到服务器："
           echo "   ssh root@$(cat ssh_address.txt) -p 22"
           echo "🔹 密码：github"
+          sleep 1h
