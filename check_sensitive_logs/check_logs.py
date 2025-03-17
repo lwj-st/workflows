@@ -17,7 +17,8 @@ SENSITIVE_KEYWORDS = os.getenv("SENSITIVE_KEYWORDS", "").split(",")
 # 计算昨天的时间范围（UTC 时间）
 yesterday = datetime.utcnow() - timedelta(days=1)
 START_TIME = yesterday.strftime("%Y-%m-%dT00:00:00Z")
-END_TIME = yesterday.strftime("%Y-%m-%dT23:59:59Z")
+# END_TIME = yesterday.strftime("%Y-%m-%dT23:59:59Z")
+END_TIME = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
 # START_TIME = "2025-02-06T00:00:00Z"
 # END_TIME = "2025-02-06T23:59:59Z"
 
