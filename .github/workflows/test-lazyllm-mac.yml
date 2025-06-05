@@ -1,4 +1,4 @@
-name: Manual PR Merge & Test
+name: Test Lazyllm Mac
 
 on:
   workflow_dispatch:
