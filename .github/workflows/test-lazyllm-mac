@@ -1,0 +1,89 @@
+name: Manual PR Merge & Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_url:
+        description: 'GitHub PR URL，例如：https://github.com/LazyAGI/LazyLLM/pull/517'
+        required: true
+        type: string
+      test_path:
+        description: '测试路径，例如：tests/basic_tests/test_doc_manager.py::TestDocListServer::test_redirect_to_docs'
+        required: true
+        type: string
+
+jobs:
+  merge-pr-test:
+    runs-on: macos-latest  
+    steps:
+      - name: Set up Git
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Install dependencies
+        run: |
+          brew install jq
+      - name: Set up python 
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.10.9
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.8.3
+
+      - name: Parse PR data and merge
+        env:
+          PR_URL: ${{ github.event.inputs.pr_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TEST_PATH: ${{ github.event.inputs.test_path }}
+        run: |
+          cd /Users/runner
+          echo "PR URL: $PR_URL"
+
+          REPO=$(echo "$PR_URL" | cut -d '/' -f 4,5)
+          PR_NUMBER=$(echo "$PR_URL" | sed -E 's#.*/pull/([0-9]+).*#\1#')
+          API_URL="https://api.github.com/repos/$REPO/pulls/$PR_NUMBER"
+
+          echo "Fetching PR data from: $API_URL"
+          PR_JSON=$(curl -sL -H "Authorization: token $GITHUB_TOKEN" "$API_URL")
+
+          BASE_BRANCH=$(echo "$PR_JSON" | jq -r .base.ref)
+          BASE_REPO_URL=$(echo "$PR_JSON" | jq -r .base.repo.clone_url)
+          BASE_NAME=$(echo "$PR_JSON" | jq -r .base.repo.name)
+          HEAD_BRANCH=$(echo "$PR_JSON" | jq -r .head.ref)
+          HEAD_REPO_URL=$(echo "$PR_JSON" | jq -r .head.repo.clone_url)
+
+          echo "Base branch: $BASE_BRANCH"
+          echo "Base repo URL: $BASE_REPO_URL"
+          echo "Repo name: $BASE_NAME"
+          echo "Head branch: $HEAD_BRANCH"
+          echo "Head repo URL: $HEAD_REPO_URL"
+
+          git clone "$BASE_REPO_URL"
+          cd "$BASE_NAME"
+          git checkout "$BASE_BRANCH"
+
+          git remote add pr_remote "$HEAD_REPO_URL" || true
+          git fetch origin "$BASE_BRANCH"
+          git fetch pr_remote "$HEAD_BRANCH"
+
+          MERGE_BRANCH="ci-test-pr-${PR_NUMBER}"
+          git checkout -B "$MERGE_BRANCH" "origin/$BASE_BRANCH"
+          git merge --no-ff "pr_remote/$HEAD_BRANCH" -m "Merge PR #$PR_NUMBER for testing"
+
+          git submodule update --init
+          cp LazyLLM-Env/poetry.lock .
+
+          poetry build
+          pip install dist/lazyllm*.whl
+
+          git clone https://$GITHUB_TOKEN@github.com/LazyAGI/LazyLLM-Data.git /tmp/lazyllm/data
+          brew install ffmpeg
+          pip install -r tests/requirements.txt
+          pip install -r tests/requirements_mac.txt
+          export LAZYLLM_DATA_PATH=/tmp/lazyllm/data
+
+          python -m pytest -vs $TEST_PATH
+    
