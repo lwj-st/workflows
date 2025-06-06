@@ -2,7 +2,7 @@ name: "Check Sensitive Logs"
 
 on:
   schedule:
-    - cron: "0 1/12 * * *"  # 北京时间每天 09:00、20:00 运行（UTC 时间 1:00、12:00）
+    - cron: "0 */3 * * *"  # 每3小时执行一次。 原 1/12 北京时间每天 09:00、20:00 运行（UTC 时间 1:00、12:00）
   workflow_dispatch:
 
 jobs:
