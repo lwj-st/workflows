@@ -1,0 +1,22 @@
+name: Start Proxy
+
+on:
+  workflow_dispatch:  # 手动触发
+
+jobs:
+  start-ssh-server:
+    runs-on: ubuntu-latest
+    steps:         
+      - name: 安装 
+        run: |
+          docker run -d \
+          --restart unless-stopped \
+          --name seven \
+          -e uuid=${{ secrets.CLOUDFLARE_PROXY_UUID }} \
+          -e token=${{ secrets.CLOUDFLARE_PROXY_TOKEN }} \
+          -e domain=${{ secrets.CLOUDFLARE_PROXY_DOMAIN }} \
+          7techlife/seven
+
+      - name: 等待
+        run: |
+          sleep inf
