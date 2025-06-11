@@ -1,0 +1,44 @@
+name: Copy Docker Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_image:
+        description: '源镜像信息 (e.g., registry/source:tag)'
+        required: true
+        type: string
+      target_image:
+        description: '目标镜像信息 (e.g., registry/target:tag)'
+        required: true
+        type: string
+
+jobs:
+  copy-image:
+    runs-on: tps-36.34
+
+    steps:
+      - name: Checkout (required by GitHub Actions even if not used)
+        uses: actions/checkout@v4
+
+      # - name: Log in to Docker (optional if public registries, but recommend support)
+      #   env:
+      #     DOCKER_USER: ${{ secrets.DOCKER_USER }}
+      #     DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      #   run: |
+      #     echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USER" --password-stdin
+
+      - name: Pull source image
+        run: |
+          docker pull "${{ github.event.inputs.source_image }}"
+
+      - name: Tag to target image
+        run: |
+          docker tag "${{ github.event.inputs.source_image }}" "${{ github.event.inputs.target_image }}"
+
+      - name: Push target image
+        run: |
+          docker push "${{ github.event.inputs.target_image }}"
+
+      - name: Remove local images
+        run: |
+          docker rmi "${{ github.event.inputs.source_image }}" "${{ github.event.inputs.target_image }}"
