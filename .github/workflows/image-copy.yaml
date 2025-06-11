@@ -20,12 +20,14 @@ jobs:
       - name: Checkout (required by GitHub Actions even if not used)
         uses: actions/checkout@v4
 
-      # - name: Log in to Docker (optional if public registries, but recommend support)
-      #   env:
-      #     DOCKER_USER: ${{ secrets.DOCKER_USER }}
-      #     DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      #   run: |
-      #     echo "$DOCKER_PASSWORD" | docker login --username "$DOCKER_USER" --password-stdin
+      - name: aliyun registry login
+        env:
+          DOCKER_USER: ${{ secrets.ALIYUN_DOCKER_USER }}
+          DOCKER_PASSWORD: ${{ secrets.ALIYUN_DOCKER_PASSWORD }}
+          DOCKER_URL: ${{ secrets.ALIYUN_DOCKER_URL }}
+          
+        run: |
+          echo "$DOCKER_PASSWORD" | docker login "$DOCKER_URL" --username "$DOCKER_USER" --password-stdin
 
       - name: Pull source image
         run: |
@@ -34,7 +36,15 @@ jobs:
       - name: Tag to target image
         run: |
           docker tag "${{ github.event.inputs.source_image }}" "${{ github.event.inputs.target_image }}"
-
+          
+      - name: private registry login
+        env:
+          DOCKER_USER: ${{ secrets.PRIVATE_DOCKER_USER }}
+          DOCKER_PASSWORD: ${{ secrets.PRIVATE_DOCKER_PASSWORD }}
+          DOCKER_URL: ${{ secrets.PRIVATE_DOCKER_URL }
+        run: |
+          echo "$DOCKER_PASSWORD" | docker login "$DOCKER_URL" --username "$DOCKER_USER" --password-stdin
+          
       - name: Push target image
         run: |
           docker push "${{ github.event.inputs.target_image }}"
