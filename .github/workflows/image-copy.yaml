@@ -41,7 +41,7 @@ jobs:
         env:
           DOCKER_USER: ${{ secrets.PRIVATE_DOCKER_USER }}
           DOCKER_PASSWORD: ${{ secrets.PRIVATE_DOCKER_PASSWORD }}
-          DOCKER_URL: ${{ secrets.PRIVATE_DOCKER_URL }
+          DOCKER_URL: ${{ secrets.PRIVATE_DOCKER_URL }}
         run: |
           echo "$DOCKER_PASSWORD" | docker login "$DOCKER_URL" --username "$DOCKER_USER" --password-stdin
           
