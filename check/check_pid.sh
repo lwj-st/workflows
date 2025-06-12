@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# 获取容器进程信息
+get_container_info(){
+  id=$1  
+  echo "检测到 containerd 容器 ID: $id"
+  echo "对应的容器信息如下："
+  docker ps --filter "id=$id"
+  echo "查看容器详细信息："
+  echo "docker inspect $id "
+}
 # 函数：获取进程信息
 get_process_info() {
     local pid=$1
@@ -70,6 +79,11 @@ get_process_info() {
         echo "$net_connections" | sed 's/^/    /'
     fi
     echo "----------------------------------------"
+    
+    local id=$(echo "$cmd $ppid_cmd" | grep -oP '(?<=-id )[a-f0-9]{64}')
+    if [[ -n "$id" ]]; then
+       get_container_info $id
+    fi    
 }
 
 
@@ -115,4 +129,3 @@ main() {
 }
 # 调用主函数
 main "$@"
-
