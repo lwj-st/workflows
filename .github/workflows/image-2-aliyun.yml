@@ -1,4 +1,4 @@
-name: Copy Docker Image
+name: Image 2 Aliyun
 
 on:
   workflow_dispatch:
