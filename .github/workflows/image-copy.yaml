@@ -51,4 +51,5 @@ jobs:
 
       - name: Remove local images
         run: |
-          docker rmi "${{ github.event.inputs.source_image }}" "${{ github.event.inputs.target_image }}"
+          docker rmi "${{ github.event.inputs.source_image }}"
+          # docker rmi "${{ github.event.inputs.target_image }}"
