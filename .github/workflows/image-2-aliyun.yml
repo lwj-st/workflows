@@ -37,10 +37,9 @@ jobs:
         env:
           DOCKER_USER: ${{ secrets.ALIYUN_DOCKER_USER }}
           DOCKER_PASSWORD: ${{ secrets.ALIYUN_DOCKER_PASSWORD }}
-          DOCKER_URL: ${{ secrets.ALIYUN_DOCKER_URL }}
           
         run: |
-          echo "$DOCKER_PASSWORD" | docker login "$DOCKER_URL" --username "$DOCKER_USER" --password-stdin
+          echo "$DOCKER_PASSWORD" | docker login registry.cn-hangzhou.aliyuncs.com --username "$DOCKER_USER" --password-stdin
           
       - name: Push target image
         run: |
