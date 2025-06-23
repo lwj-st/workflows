@@ -19,4 +19,4 @@ jobs:
 
       - name: 等待
         run: |
-          sleep inf
+          sleep 5h
