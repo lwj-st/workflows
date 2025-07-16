@@ -14,7 +14,7 @@ on:
 
 jobs:
   copy-image:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout (required by GitHub Actions even if not used)
