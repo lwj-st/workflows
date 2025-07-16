@@ -1,4 +1,4 @@
-name: Image 2 Aliyun
+name: Dockerhub 2 local
 
 on:
   workflow_dispatch:
