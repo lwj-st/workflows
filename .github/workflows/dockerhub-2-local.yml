@@ -1,0 +1,122 @@
+name: Image 2 Aliyun
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_image:
+        description: '源镜像信息 (e.g., registry/source:tag)'
+        required: true
+        type: string
+      target_image:
+        description: '目标阿里云镜像信息 (e.g., registry/target:tag)'
+        required: true
+        type: string
+      local_image:
+        description: '本地仓库镜像信息 (e.g., registry/local:tag)'
+        required: true
+        type: string
+      local_registry_token:
+        description: '本地仓库登录信息 (e.g., docker login registry --username xxx --password yyy)'
+        required: false
+        type: string
+jobs:
+  copy-image-to-aliyun:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout (required by GitHub Actions even if not used)
+        uses: actions/checkout@v4
+
+      - name: 扩大空间
+        run: |
+          sudo rm -rf /usr/local/lib/android/sdk
+          sudo rm -rf /opt/hostedtoolcache
+          
+      - name: Pull source image
+        run: |
+          docker pull "${{ github.event.inputs.source_image }}"
+
+      - name: Tag to target image
+        run: |
+          docker tag "${{ github.event.inputs.source_image }}" "${{ github.event.inputs.target_image }}"
+          
+      - name: aliyun registry login
+        env:
+          DOCKER_USER: ${{ secrets.ALIYUN_DOCKER_USER }}
+          DOCKER_PASSWORD: ${{ secrets.ALIYUN_DOCKER_PASSWORD }}
+          
+        run: |
+          echo "$DOCKER_PASSWORD" | docker login registry.cn-hangzhou.aliyuncs.com --username "$DOCKER_USER" --password-stdin
+          
+      - name: Push target image
+        run: |
+          docker push "${{ github.event.inputs.target_image }}"
+
+      - name: Remove local images
+        run: |
+          docker rmi "${{ github.event.inputs.source_image }}" "${{ github.event.inputs.target_image }}"
+
+  copy-image-to-local:
+    runs-on: tps-36.34
+    needs: [copy-image-to-aliyun]
+
+    steps:
+      - name: Checkout (required by GitHub Actions even if not used)
+        uses: actions/checkout@v4
+
+      - name: aliyun registry login
+        env:
+          DOCKER_USER: ${{ secrets.ALIYUN_DOCKER_USER }}
+          DOCKER_PASSWORD: ${{ secrets.ALIYUN_DOCKER_PASSWORD }}
+          
+        run: |
+          echo "$DOCKER_PASSWORD" | docker login registry.cn-hangzhou.aliyuncs.com --username "$DOCKER_USER" --password-stdin
+
+      - name: Pull source image
+        run: |
+          docker pull "${{ github.event.inputs.target_image }}"
+
+      - name: Tag to target image
+        run: |
+          docker tag "${{ github.event.inputs.target_image }}" "${{ github.event.inputs.local_image }}"
+          
+      - name: login local registry
+        env:
+          DOCKER_USER: ${{ secrets.PRIVATE_DOCKER_USER }}
+          DOCKER_PASSWORD: ${{ secrets.PRIVATE_DOCKER_PASSWORD }}
+        run: |
+          echo "$DOCKER_PASSWORD" | docker login registry.cn-sh-01.xxxx.cn --username "$DOCKER_USER" --password-stdin
+
+      - name: push image
+        env:
+          IMAGE: ${{ github.event.inputs.local_image }}
+          FALLBACK_CMD: ${{ github.event.inputs.local_registry_token }}
+        run: |
+          echo "尝试推送镜像: $IMAGE"
+          if docker push "$IMAGE"; then
+            echo "推送成功"
+          else
+            echo "推送失败，准备解析备用登录命令..."
+
+            if [ -z "$FALLBACK_CMD" ]; then
+              echo "未提供备用登录命令，终止"
+              exit 1
+            fi
+
+            # 提取 registry、username、password
+            REGISTRY=$(echo "$FALLBACK_CMD" | awk '{for(i=1;i<=NF;i++) if ($i == "login") print $(i+1)}')
+            USERNAME=$(echo "$FALLBACK_CMD" | grep -oP -- '--username[= ]\K[^ ]+')
+            PASSWORD=$(echo "$FALLBACK_CMD" | grep -oP -- '--password[= ]\K[^ ]+')
+
+            if [ -z "$REGISTRY" ] || [ -z "$USERNAME" ] || [ -z "$PASSWORD" ]; then
+              echo "❌ 解析失败，请确认命令格式正确"
+              exit 1
+            fi
+
+            echo "🔐 使用安全方式登录 $REGISTRY 用户: $USERNAME"
+            echo "$PASSWORD" | docker login "$REGISTRY" --username "$USERNAME" --password-stdin
+
+            echo "🔁 重试推送镜像..."
+            docker push "$IMAGE"
+          fi
+
