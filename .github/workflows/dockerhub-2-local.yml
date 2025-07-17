@@ -79,6 +79,13 @@ jobs:
         run: |
           docker tag "${{ github.event.inputs.target_image }}" "${{ github.event.inputs.local_image }}"
           
+      - name: private registry login
+        env:
+          DOCKER_USER: ${{ secrets.PRIVATE_DOCKER_USER }}
+          DOCKER_PASSWORD: ${{ secrets.PRIVATE_DOCKER_PASSWORD }}
+        run: |
+          echo "$DOCKER_PASSWORD" | docker login registry.cn-sh-01.sensecore.cn --username "$DOCKER_USER" --password-stdin
+          
       - name: push image
         env:
           IMAGE: ${{ github.event.inputs.local_image }}
