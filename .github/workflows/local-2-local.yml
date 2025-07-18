@@ -20,7 +20,7 @@ jobs:
       - name: Checkout (required by GitHub Actions even if not used)
         uses: actions/checkout@v4
 
-      - name: aliyun registry login
+      - name: sensecore registry login
         env:
           DOCKER_USER: ${{ secrets.PRIVATE_DOCKER_USER }}
           DOCKER_PASSWORD: ${{ secrets.PRIVATE_DOCKER_PASSWORD }}
