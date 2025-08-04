@@ -1,0 +1,54 @@
+name: maas 2 sco
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_image:
+        description: '源镜像信息 (e.g., registry/source:tag)'
+        required: true
+        type: string
+      target_image:
+        description: '目标镜像信息 (e.g., registry/target:tag)'
+        required: true
+        type: string
+
+jobs:
+  copy-image:
+    runs-on: tps-36.34
+
+    steps:
+      - name: Checkout (required by GitHub Actions even if not used)
+        uses: actions/checkout@v4
+        
+      - name: private registry login
+        env:
+          DOCKER_USER: ${{ secrets.MAAS_DOCKER_USER }}
+          DOCKER_PASSWORD: ${{ secrets.MAAS_DOCKER_PASSWORD }}
+
+        run: |
+          echo "$DOCKER_PASSWORD" | docker login registry.sensetime.com --username "$DOCKER_USER" --password-stdin
+          
+      - name: Pull source image
+        run: |
+          docker pull "${{ github.event.inputs.source_image }}"
+      
+          
+      - name: Tag to target image
+        run: |
+          docker tag "${{ github.event.inputs.source_image }}" "${{ github.event.inputs.target_image }}"
+          
+      - name: sensecore registry login
+        env:
+          DOCKER_USER: ${{ secrets.PRIVATE_DOCKER_USER }}
+          DOCKER_PASSWORD: ${{ secrets.PRIVATE_DOCKER_PASSWORD }}
+
+        run: |
+          echo "$DOCKER_PASSWORD" | docker login registry.cn-sh-01.sensecore.cn --username "$DOCKER_USER" --password-stdin
+          
+      - name: Push target image
+        run: |
+          docker push "${{ github.event.inputs.target_image }}"
+      - name: Remove local images
+        run: |
+          docker rmi "${{ github.event.inputs.source_image }}"
+          # docker rmi "${{ github.event.inputs.target_image }}"
