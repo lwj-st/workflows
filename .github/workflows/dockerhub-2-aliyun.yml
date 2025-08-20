@@ -7,10 +7,19 @@ on:
         description: '源镜像信息 (e.g., registry/source:tag)'
         required: true
         type: string
-      target_image:
-        description: '目标阿里云镜像信息 (e.g., registry/target:tag)'
+      target_registry:
+        description: '目标阿里云镜像命名空间'
+        type: choice
         required: true
+        options:
+          - registry.cn-hangzhou.aliyuncs.com/lazyllm/
+          - registry.cn-hangzhou.aliyuncs.com/liwenjian123/
+      target_image:
+        description: '镜像名 (e.g., test:mysql-0.0.1 lazyllm:latest)'
         type: string
+        required: true
+
+        
 
 jobs:
   copy-image:
@@ -31,7 +40,7 @@ jobs:
 
       - name: Tag to target image
         run: |
-          docker tag "${{ github.event.inputs.source_image }}" "${{ github.event.inputs.target_image }}"
+          docker tag "${{ github.event.inputs.source_image }}" "${{ github.event.inputs.target_registry }}${{ github.event.inputs.target_image }}"
           
       - name: aliyun registry login
         env:
@@ -43,8 +52,8 @@ jobs:
           
       - name: Push target image
         run: |
-          docker push "${{ github.event.inputs.target_image }}"
+          docker push "${{ github.event.inputs.target_registry }}${{ github.event.inputs.target_image }}"
 
       - name: Remove local images
         run: |
-          docker rmi "${{ github.event.inputs.source_image }}" "${{ github.event.inputs.target_image }}"
+          docker rmi "${{ github.event.inputs.source_image }}" "${{ github.event.inputs.target_registry }}${{ github.event.inputs.target_image }}"
