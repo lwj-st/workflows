@@ -7,6 +7,13 @@ on:
         description: '源镜像信息 (e.g., registry/source:tag)'
         required: true
         type: string
+      ARCH:
+        description: '镜像架构'
+        type: choice
+        required: true
+        options:
+          - amd64
+          - arm64
       target_registry:
         description: '目标阿里云镜像命名空间'
         type: choice
@@ -36,7 +43,7 @@ jobs:
           
       - name: Pull source image
         run: |
-          docker pull "${{ github.event.inputs.source_image }}"
+          docker pull "${{ github.event.inputs.source_image }}" --platform linux/${{ github.event.inputs.ARCH }}
 
       - name: Tag to target image
         run: |
