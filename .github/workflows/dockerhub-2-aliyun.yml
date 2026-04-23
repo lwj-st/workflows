@@ -7,6 +7,7 @@ on:
         description: '源镜像信息 (e.g., registry/source:tag)'
         required: true
         type: string
+
       ARCH:
         description: '镜像架构'
         type: choice
@@ -14,6 +15,7 @@ on:
         options:
           - amd64
           - arm64
+
       target_registry:
         description: '目标阿里云镜像命名空间'
         type: choice
@@ -21,46 +23,100 @@ on:
         options:
           - registry.cn-hangzhou.aliyuncs.com/lazyllm/
           - registry.cn-hangzhou.aliyuncs.com/liwenjian123/
-      target_image:
-        description: '镜像名 (e.g., test:mysql-0.0.1 lazyllm:latest)'
-        type: string
-        required: true
 
-        
+      image_name_mode:
+        description: '镜像命名策略'
+        type: choice
+        required: true
+        options:
+          - lazyllm
+          - test
+
+      target_image:
+        description: '镜像名 (可选，不填自动生成)'
+        type: string
+        required: false
 
 jobs:
   copy-image:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout (required by GitHub Actions even if not used)
+      - name: Checkout
         uses: actions/checkout@v4
+
+      # ✅ 提前计算目标镜像名
+      - name: Generate target image name (early)
+        id: gen_image
+        run: |
+          SOURCE="${{ github.event.inputs.source_image }}"
+          MODE="${{ github.event.inputs.image_name_mode }}"
+          TARGET_INPUT="${{ github.event.inputs.target_image }}"
+          ARCH="${{ github.event.inputs.ARCH }}"
+          REGISTRY="${{ github.event.inputs.target_registry }}"
+
+          if [ -n "$TARGET_INPUT" ]; then
+            TARGET_IMAGE="$TARGET_INPUT"
+          else
+            TAG="${SOURCE##*:}"
+            NAME_WITH_PATH="${SOURCE%:*}"
+            NAME="${NAME_WITH_PATH##*/}"
+
+            if [ "$MODE" = "lazyllm" ]; then
+              TARGET_IMAGE="lazyllm:${TAG}"
+            else
+              TARGET_IMAGE="test:${NAME}-${TAG}"
+            fi
+          fi
+
+          # arm64 加后缀
+          if [ "$ARCH" = "arm64" ]; then
+            IMAGE_NAME="${TARGET_IMAGE%:*}"
+            IMAGE_TAG="${TARGET_IMAGE##*:}"
+            TARGET_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}-arm"
+          fi
+
+          FULL_IMAGE="${REGISTRY}${TARGET_IMAGE}"
+
+          echo "TARGET_IMAGE=$TARGET_IMAGE" >> $GITHUB_ENV
+          echo "FULL_IMAGE=$FULL_IMAGE" >> $GITHUB_ENV
+
+          echo "✅ Target image: $FULL_IMAGE"
+
+      # ✅ 输出到 summary（UI 可见）
+      - name: Show summary
+        run: |
+          echo "## 🚀 Image Sync Info" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Source Image: \`${{ github.event.inputs.source_image }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Target Image: \`${{ env.FULL_IMAGE }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Architecture: \`${{ github.event.inputs.ARCH }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Mode: \`${{ github.event.inputs.image_name_mode }}\`" >> $GITHUB_STEP_SUMMARY
 
       - name: 扩大空间
         run: |
           sudo rm -rf /usr/local/lib/android/sdk &
           sudo rm -rf /opt/hostedtoolcache &
-          
+
       - name: Pull source image
         run: |
           docker pull "${{ github.event.inputs.source_image }}" --platform linux/${{ github.event.inputs.ARCH }}
 
       - name: Tag to target image
         run: |
-          docker tag "${{ github.event.inputs.source_image }}" "${{ github.event.inputs.target_registry }}${{ github.event.inputs.target_image }}"
-          
-      - name: aliyun registry login
+          docker tag "${{ github.event.inputs.source_image }}" "${{ env.FULL_IMAGE }}"
+
+      - name: Aliyun registry login
         env:
           DOCKER_USER: ${{ secrets.ALIYUN_DOCKER_USER }}
           DOCKER_PASSWORD: ${{ secrets.ALIYUN_DOCKER_PASSWORD }}
-          
         run: |
           echo "$DOCKER_PASSWORD" | docker login registry.cn-hangzhou.aliyuncs.com --username "$DOCKER_USER" --password-stdin
-          
+
       - name: Push target image
         run: |
-          docker push "${{ github.event.inputs.target_registry }}${{ github.event.inputs.target_image }}"
+          docker push "${{ env.FULL_IMAGE }}"
 
       - name: Remove local images
         run: |
-          docker rmi "${{ github.event.inputs.source_image }}" "${{ github.event.inputs.target_registry }}${{ github.event.inputs.target_image }}"
+          docker rmi "${{ github.event.inputs.source_image }}" "${{ env.FULL_IMAGE }}"
