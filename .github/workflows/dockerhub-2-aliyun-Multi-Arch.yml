@@ -1,0 +1,94 @@
+name: Dockerhub 2 Aliyun (Multi-Arch)
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_image:
+        description: '源镜像 (e.g., node:24)'
+        required: true
+        type: string
+
+      target_registry:
+        description: '目标阿里云命名空间'
+        required: true
+        type: string
+        default: registry.cn-hangzhou.aliyuncs.com/liwenjian123/
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+
+    outputs:
+      target_image: ${{ steps.meta.outputs.target_image }}
+
+    steps:
+      - name: Generate image name
+        id: meta
+        run: |
+          SOURCE="${{ github.event.inputs.source_image }}"
+          REGISTRY="${{ github.event.inputs.target_registry }}"
+
+          TAG="${SOURCE##*:}"
+          NAME_WITH_PATH="${SOURCE%:*}"
+          NAME="${NAME_WITH_PATH##*/}"
+
+          TARGET_IMAGE="test:${NAME}-${TAG}"
+          FULL_IMAGE="${REGISTRY}${TARGET_IMAGE}"
+
+          echo "target_image=$TARGET_IMAGE" >> $GITHUB_OUTPUT
+          echo "full_image=$FULL_IMAGE" >> $GITHUB_ENV
+
+      - name: Login Aliyun
+        env:
+          USER: ${{ secrets.ALIYUN_DOCKER_USER }}
+          PASS: ${{ secrets.ALIYUN_DOCKER_PASSWORD }}
+        run: |
+          echo "$PASS" | docker login registry.cn-hangzhou.aliyuncs.com -u "$USER" --password-stdin
+
+      - name: Pull image (by arch)
+        run: |
+          docker pull --platform=linux/${{ matrix.arch }} "${{ github.event.inputs.source_image }}"
+
+      - name: Tag image
+        run: |
+          docker tag "${{ github.event.inputs.source_image }}" \
+          "${{ env.full_image }}-${{ matrix.arch }}"
+
+      - name: Push image
+        run: |
+          docker push "${{ env.full_image }}-${{ matrix.arch }}"
+
+  merge:
+    runs-on: ubuntu-22.04
+    needs: build
+
+    steps:
+      - name: Login Aliyun
+        env:
+          USER: ${{ secrets.ALIYUN_DOCKER_USER }}
+          PASS: ${{ secrets.ALIYUN_DOCKER_PASSWORD }}
+        run: |
+          echo "$PASS" | docker login registry.cn-hangzhou.aliyuncs.com -u "$USER" --password-stdin
+
+      - name: Create manifest
+        run: |
+          TARGET="${{ github.event.inputs.target_registry }}${{ needs.build.outputs.target_image }}"
+
+          docker manifest create "$TARGET" \
+            --amend "$TARGET-amd64" \
+            --amend "$TARGET-arm64"
+
+      - name: Annotate
+        run: |
+          TARGET="${{ github.event.inputs.target_registry }}${{ needs.build.outputs.target_image }}"
+
+          docker manifest annotate "$TARGET" "$TARGET-amd64" --os linux --arch amd64
+          docker manifest annotate "$TARGET" "$TARGET-arm64" --os linux --arch arm64
+
+      - name: Push manifest
+        run: |
+          TARGET="${{ github.event.inputs.target_registry }}${{ needs.build.outputs.target_image }}"
+          docker manifest push "$TARGET"
