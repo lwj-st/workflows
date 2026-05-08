@@ -18,13 +18,6 @@ jobs:
           echo "Hello GitHub Actions" > output/summary.md
           date > output/summary.md
 
-          cat <<EOF > output/info.json
-          {
-            "workflow": "${{ github.workflow }}",
-            "run_id": "${{ github.run_id }}",
-            "actor": "${{ github.actor }}"
-          }
-          EOF
 
       - name: Show generated files
         run: |
