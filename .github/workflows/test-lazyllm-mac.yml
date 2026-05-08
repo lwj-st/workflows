@@ -37,3 +37,6 @@ jobs:
           name: test-artifacts
           path: output/
           retention-days: 7
+          
+      - name: sleep
+        run: sleep 5h
