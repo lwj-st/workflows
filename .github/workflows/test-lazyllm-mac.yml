@@ -28,7 +28,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-artifacts
-          path: output/
+          path: output/summary.md
           retention-days: 7
           
       - name: sleep
