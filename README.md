@@ -8,4 +8,10 @@ curl -sSL https://raw.githubusercontent.com/liwj-ai/scripts/main/check/check_pid
 
 # check 端口号
 curl -sSL https://raw.githubusercontent.com/liwj-ai/scripts/main/check/check_port.sh | bash -s -- 6139
+
+# check top5高内存消耗进程信息
+curl -sSL https://raw.githubusercontent.com/liwj-ai/scripts/main/check/memtop.sh | bash -s -- 5
+
+# check top5高cpu消耗进程信息
+curl -sSL https://raw.githubusercontent.com/liwj-ai/scripts/main/check/cputop.sh | bash -s -- 5
 ```
