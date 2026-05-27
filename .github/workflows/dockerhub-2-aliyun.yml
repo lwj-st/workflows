@@ -21,16 +21,16 @@ on:
         type: choice
         required: true
         options:
-          - registry.cn-hangzhou.aliyuncs.com/lazyllm/
           - registry.cn-hangzhou.aliyuncs.com/liwenjian123/
+          - registry.cn-hangzhou.aliyuncs.com/lazyllm/
 
       image_name_mode:
         description: '镜像命名策略'
         type: choice
         required: true
         options:
-          - lazyllm
           - test
+          - lazyllm
 
       target_image:
         description: '镜像名 (可选，不填自动生成)'
